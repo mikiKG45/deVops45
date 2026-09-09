@@ -1,0 +1,36 @@
+# --- Terraform ---
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# Variable files may carry account IDs / secrets. Commit the .example instead.
+*.tfvars
+!*.tfvars.example
+
+# NOTE: .terraform.lock.hcl is intentionally NOT ignored — it pins provider
+# versions and must be committed so CI resolves the same providers you do.
+
+# --- AWS / Kubernetes ---
+.aws/
+kubeconfig*
+*.kubeconfig
+
+# --- Secrets ---
+.env
+.env.*
+*.pem
+*.key
+
+# --- Editor / OS ---
+.vscode/
+.idea/
+.DS_Store

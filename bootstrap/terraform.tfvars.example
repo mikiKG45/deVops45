@@ -1,0 +1,8 @@
+# Copy this file to terraform.tfvars and fill in real values.
+# terraform.tfvars is gitignored (it can hold personal data), this .example is committed.
+
+alert_email = "you@example.com"
+
+# These have defaults in variables.tf; override only if needed:
+# aws_region  = "eu-central-1"
+# aws_profile = "devops45"
