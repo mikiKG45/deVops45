@@ -27,3 +27,9 @@ output "node_role_arn" {
   description = "IAM role ARN of the worker nodes."
   value       = aws_iam_role.node.arn
 }
+
+output "cluster_security_group_id" {
+  description = "The cluster security group EKS creates; nodes/pods use it. RDS allows only this."
+  value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
+}
+

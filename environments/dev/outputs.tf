@@ -18,3 +18,14 @@ output "cluster_endpoint" {
   value = module.eks.cluster_endpoint
 }
 
+output "db_endpoint" {
+  value = module.database.db_endpoint
+}
+
+output "db_secret_arn" {
+  value = module.database.db_secret_arn
+}
+
+output "app_role_arn" {
+  value = module.app_irsa.role_arn
+}
