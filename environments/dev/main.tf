@@ -61,3 +61,24 @@ module "app_irsa" {
     ]
   })
 }
+
+# IAM policy for the AWS Load Balancer Controller (official AWS policy JSON).
+resource "aws_iam_policy" "lb_controller" {
+  name   = "${var.name}-lb-controller"
+  policy = file("${path.module}/files/lb-controller-policy.json")
+}
+
+# IRSA role for the controller, reusing our irsa-role module.
+# The controller runs in kube-system as ServiceAccount "aws-load-balancer-controller".
+module "lb_controller_irsa" {
+  source = "../../modules/irsa-role"
+
+  role_name         = "${var.name}-lb-controller"
+  oidc_provider_arn = module.eks.oidc_provider_arn
+  oidc_provider_url = module.eks.oidc_provider_url
+
+  namespace            = "kube-system"
+  service_account_name = "aws-load-balancer-controller"
+
+  policy_arns = [aws_iam_policy.lb_controller.arn]
+}

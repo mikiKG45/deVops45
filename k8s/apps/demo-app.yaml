@@ -1,0 +1,76 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: demo
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: demo-app
+  namespace: demo
+  annotations:
+    # Links this ServiceAccount to our IRSA role (matches namespace:sa from Phase 4).
+    eks.amazonaws.com/role-arn: arn:aws:iam::705959604116:role/devops45-dev-demo-app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: demo-app
+  namespace: demo
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: demo-app
+  template:
+    metadata:
+      labels:
+        app: demo-app
+    spec:
+      serviceAccountName: demo-app
+      containers:
+        - name: adminer
+          image: adminer:4
+          ports:
+            - containerPort: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: demo-app
+  namespace: demo
+spec:
+  selector:
+    app: demo-app
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: demo-app
+  namespace: demo
+  annotations:
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.type=lb_cookie
+spec:
+  ingressClassName: alb
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: demo-app
+                port:
+                  number: 80

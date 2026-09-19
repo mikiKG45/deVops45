@@ -29,3 +29,7 @@ output "db_secret_arn" {
 output "app_role_arn" {
   value = module.app_irsa.role_arn
 }
+
+output "lb_controller_role_arn" {
+  value = module.lb_controller_irsa.role_arn
+}
