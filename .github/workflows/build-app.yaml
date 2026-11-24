@@ -1,0 +1,54 @@
+# Builds the Go demo app image and pushes it to ECR on every change to appGo/ on main.
+# Authenticates to AWS via OIDC — no AWS keys are stored in GitHub.
+name: build-app
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "appGo/**"
+      - ".github/workflows/build-app.yaml"
+  workflow_dispatch: # "Run workflow" button in the Actions tab, for manual runs
+
+# Least privilege for the workflow's own GitHub token.
+permissions:
+  id-token: write # allow requesting the OIDC JWT that AWS will verify
+  contents: read  # allow checking out the code, nothing more
+
+env:
+  AWS_REGION: eu-central-1
+  ECR_REPOSITORY: devops45/demo-app
+  # Not a secret: knowing the ARN is useless without a token that matches the trust policy.
+  AWS_ROLE_ARN: arn:aws:iam::705959604116:role/devops45-github-ci
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build and push
+        uses: docker/build-push-action@v7
+        with:
+          context: appGo
+          push: true
+          # Tag = commit SHA. The ECR repo is IMMUTABLE, so each tag must be unique —
+          # which also means every image traces back to the exact commit that built it.
+          tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+          # Reuse Docker layers between runs (the go mod download layer especially).
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
