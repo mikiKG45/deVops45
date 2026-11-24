@@ -11,3 +11,9 @@ output "ecr_repository_url" {
   description = "Full URL to docker push/pull the demo app image."
   value       = aws_ecr_repository.demo_app.repository_url
 }
+
+output "github_ci_role_arn" {
+  description = "IAM role GitHub Actions assumes via OIDC (goes into the workflow's role-to-assume)."
+  value       = aws_iam_role.github_ci.arn
+}
+
