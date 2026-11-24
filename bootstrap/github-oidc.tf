@@ -7,7 +7,10 @@
 # provider per issuer URL, and CI must keep working while the cluster is destroyed.
 
 locals {
-  github_repo = "mikiKG45/deVops45"
+  # GitHub's OIDC "sub" claim embeds immutable numeric IDs: <owner>@<owner_id>/<repo>@<repo_id>.
+  # IDs are never reused, so a recreated account/repo with the same NAME can't match this.
+  # (IDs from: https://api.github.com/repos/mikiKG45/deVops45 → owner.id, id)
+  github_repo_sub = "mikiKG45@94083142/deVops45@1470797228"
 }
 
 # Registers GitHub as a trusted identity provider in this AWS account.
@@ -41,7 +44,7 @@ data "aws_iam_policy_document" "github_assume" {
     condition {
       test     = "StringEquals"
       variable = "token.actions.githubusercontent.com:sub"
-      values   = ["repo:${local.github_repo}:ref:refs/heads/main"]
+      values   = ["repo:${local.github_repo_sub}:ref:refs/heads/main"]
     }
   }
 }

@@ -46,6 +46,10 @@ jobs:
         with:
           context: appGo
           push: true
+          # One plain image manifest instead of an index + attestation: keeps ECR's
+          # lifecycle count (1 build = 1 image) and scan-on-push working. Revisit in Phase 8.
+          provenance: false
+
           # Tag = commit SHA. The ECR repo is IMMUTABLE, so each tag must be unique —
           # which also means every image traces back to the exact commit that built it.
           tags: ${{ steps.ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
