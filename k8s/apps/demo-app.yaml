@@ -29,10 +29,44 @@ spec:
     spec:
       serviceAccountName: demo-app
       containers:
-        - name: adminer
-          image: adminer:4
+        - name: app
+          # Tag = git commit SHA that CI built. Immutable, so this always means the same image.
+          image: 705959604116.dkr.ecr.eu-central-1.amazonaws.com/devops45/demo-app:943e9221e573c6136d984ec0be6e6d13d7fdac0c
           ports:
-            - containerPort: 8080
+            - name: http
+              containerPort: 8080
+          env:
+            - name: DB_SECRET_NAME
+              value: devops45-dev/db-credentials
+            # The AWS SDK needs a region to call Secrets Manager; don't rely on injection.
+            - name: AWS_REGION
+              value: eu-central-1
+          # Ready = may receive traffic (ALB waits for this). Startup includes the DB connect.
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 2
+            periodSeconds: 5
+          # Alive = not stuck. Three failures in a row → kubelet restarts the container.
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          # Distroless + static binary need nothing else: lock the container down.
+          securityContext:
+            # Distroless "nonroot" user = UID/GID 65532. Must be numeric: kubelet can't
+            # resolve a username inside the image, so runAsNonRoot can't verify a name.
+            runAsUser: 65532
+            runAsGroup: 65532
+            runAsNonRoot: true
+            readOnlyRootFilesystem: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
           resources:
             requests:
               cpu: 50m
@@ -50,8 +84,9 @@ spec:
   selector:
     app: demo-app
   ports:
-    - port: 80
-      targetPort: 8080
+    - name: http # named so a Prometheus ServiceMonitor can target it later
+      port: 80
+      targetPort: http
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -61,7 +96,8 @@ metadata:
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
-    alb.ingress.kubernetes.io/target-group-attributes: stickiness.enabled=true,stickiness.type=lb_cookie
+    # ALB health checks hit /healthz instead of "/" (which queries the database).
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
 spec:
   ingressClassName: alb
   rules:
@@ -73,4 +109,4 @@ spec:
               service:
                 name: demo-app
                 port:
-                  number: 80
+                  name: http
