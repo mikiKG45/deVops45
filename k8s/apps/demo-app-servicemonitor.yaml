@@ -1,0 +1,17 @@
+# Tells the Prometheus Operator to scrape the demo app. The operator turns this into
+# Prometheus scrape config; Prometheus then hits EVERY pod behind the Service directly.
+# Separate file on purpose: ServiceMonitor is a CRD installed by kube-prometheus-stack,
+# so demo-app.yaml stays deployable on a cluster without the stack.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: demo-app
+  namespace: demo
+spec:
+  selector:
+    matchLabels:
+      app: demo-app   # matches the Service's metadata.labels
+  endpoints:
+    - port: http      # the NAMED Service port (that's why we named it in 6d-2)
+      path: /metrics
+      interval: 15s

@@ -27,6 +27,14 @@ var (
 )
 
 var logger = slog.New(slog.NewJSONHandler(os.Stdout, nil))
+// Pre-create every path's counter at 0. A labelled series only exists after its
+// first Inc(), so Prometheus would first see it already at its final value and
+// rate()/increase() would miss that whole first burst of requests.
+func init() {
+	for _, p := range []string{"/", "/messages", "/api/messages"} {
+		requestsTotal.WithLabelValues(p)
+	}
+}
 
 // server holds shared dependencies (the DB pool).
 type server struct {

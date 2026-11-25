@@ -1,0 +1,51 @@
+# kube-prometheus-stack — Prometheus + Grafana + Prometheus Operator + exporters.
+# Installed with Helm (pinned version, see notes). Only overrides of chart defaults live here.
+
+# --- EKS hides the control plane ---
+# AWS runs etcd, the scheduler and the controller-manager for us; their metrics
+# endpoints aren't reachable from the cluster. Scraping them would only produce
+# permanently "down" targets, so switch those scrapers off.
+kubeEtcd:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+# EKS's kube-proxy serves metrics on 127.0.0.1 only → unreachable, same story.
+kubeProxy:
+  enabled: false
+
+# Nobody to page yet (no Slack/e-mail receiver). Saves a pod; revisit later.
+alertmanager:
+  enabled: false
+
+prometheus:
+  prometheusSpec:
+    # Keep 24h of metrics. Storage is emptyDir (no PersistentVolume) on purpose:
+    # the environment is destroyed nightly, and PVC-created EBS volumes would live
+    # outside Terraform state — the same leak trap as the ALB in Phase 5.
+    retention: 24h
+    # By default Prometheus only picks up ServiceMonitors labelled with THIS Helm
+    # release. "false" = pick up every ServiceMonitor/PodMonitor in every namespace,
+    # so our app's ServiceMonitor (in "demo") needs no special label.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    resources:
+      requests:
+        cpu: 200m
+        memory: 1Gi
+      limits:
+        memory: 2Gi
+
+grafana:
+  # The chart's default password is the public string "prom-operator". Empty =
+  # the Grafana chart generates a random 40-char password into a Secret instead,
+  # so no password is ever written into git.
+  adminPassword: ""
+  # No Ingress: Grafana stays private, reached via `kubectl port-forward`.
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 512Mi
