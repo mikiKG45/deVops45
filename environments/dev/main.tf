@@ -21,6 +21,11 @@ module "eks" {
 
   # Worker nodes run in the public subnets (no NAT).
   node_subnet_ids = module.network.public_subnet_ids
+
+  # Phase 6: the observability stack (Prometheus, Loki, Tempo, Grafana) needs RAM.
+  # t3.large = 8 GiB and 35 pods per node (vs 4 GiB / 17 on t3.medium); two of them
+  # beat three t3.medium because DaemonSets (node-exporter, log agent) run per node.
+  node_instance_types = ["t3.large"]
 }
 
 module "database" {

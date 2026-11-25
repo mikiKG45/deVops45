@@ -31,7 +31,7 @@ spec:
       containers:
         - name: app
           # Tag = git commit SHA that CI built. Immutable, so this always means the same image.
-          image: 705959604116.dkr.ecr.eu-central-1.amazonaws.com/devops45/demo-app:943e9221e573c6136d984ec0be6e6d13d7fdac0c
+          image: 705959604116.dkr.ecr.eu-central-1.amazonaws.com/devops45/demo-app:ada8a065062c412b9b5f259857503e0b60438515
           ports:
             - name: http
               containerPort: 8080
