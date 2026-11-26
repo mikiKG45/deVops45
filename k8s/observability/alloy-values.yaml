@@ -1,0 +1,68 @@
+# Grafana Alloy — collects every pod's logs and pushes them to Loki.
+# (Promtail, the agent most Loki tutorials use, is deprecated; Alloy replaces it.)
+
+# One Alloy pod that streams logs through the Kubernetes API (like `kubectl logs -f`).
+# The usual alternative is a DaemonSet reading /var/log/pods from each node's disk:
+# better at scale, but needs hostPath mounts. For 2 nodes the API way is simpler.
+controller:
+  type: deployment
+  replicas: 1
+
+alloy:
+  configMap:
+    content: |
+      // 1. Find every pod in the cluster.
+      discovery.kubernetes "pods" {
+        role = "pod"
+      }
+
+      // 2. Turn Kubernetes metadata into a FEW Loki labels. Loki indexes labels
+      //    only, and every unique label combination is a separate stream — so
+      //    never label by high-cardinality values (user IDs, URLs, request IDs).
+      discovery.relabel "pods" {
+        targets = discovery.kubernetes.pods.targets
+
+        rule {
+          source_labels = ["__meta_kubernetes_namespace"]
+          target_label  = "namespace"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_name"]
+          target_label  = "pod"
+        }
+        rule {
+          source_labels = ["__meta_kubernetes_pod_container_name"]
+          target_label  = "container"
+        }
+        // app = our "app" label (demo-app)...
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app"]
+          target_label  = "app"
+        }
+        // ...or the standard app.kubernetes.io/name that Helm charts set.
+        // regex "(.+)" = only when non-empty, so it can't erase the rule above.
+        rule {
+          source_labels = ["__meta_kubernetes_pod_label_app_kubernetes_io_name"]
+          regex         = "(.+)"
+          target_label  = "app"
+        }
+      }
+
+      // 3. Stream the containers' logs through the Kubernetes API.
+      loki.source.kubernetes "pods" {
+        targets    = discovery.relabel.pods.output
+        forward_to = [loki.write.default.receiver]
+      }
+
+      // 4. Push to Loki's Service (no gateway, see loki-values.yaml).
+      loki.write "default" {
+        endpoint {
+          url = "http://loki.monitoring.svc.cluster.local:3100/loki/api/v1/push"
+        }
+      }
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi

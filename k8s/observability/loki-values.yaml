@@ -1,0 +1,72 @@
+# Loki — log storage in single-binary mode (one pod ingests, stores and queries).
+# Chart defaults target a production, S3-backed cluster; this scales it down to a
+# 2-node, destroy-nightly training cluster. Installed with Helm, version pinned.
+
+deploymentMode: SingleBinary
+
+loki:
+  # Single tenant: no X-Scope-OrgID header needed to push or query.
+  auth_enabled: false
+  commonConfig:
+    replication_factor: 1 # only one Loki pod, so one copy
+  storage:
+    type: filesystem # chunks + index on the pod's disk (emptyDir below)
+  # Index layout. Required — the chart refuses to install without it.
+  # tsdb + v13 is the current recommended schema; "from" only has to be in the past.
+  schemaConfig:
+    configs:
+      - from: "2024-04-01"
+        store: tsdb
+        object_store: filesystem
+        schema: v13
+        index:
+          prefix: loki_index_
+          period: 24h
+
+singleBinary:
+  replicas: 1
+  # No PVC: no EBS CSI driver, and the env is destroyed nightly anyway (same
+  # reasoning as Prometheus).
+  persistence:
+    enabled: false
+  # ...but with persistence off the chart mounts nothing at /var/loki, and the
+  # container's root filesystem is read-only — Loki would crash on its first write.
+  # Give it an emptyDir there (lives as long as the pod).
+  extraVolumes:
+    - name: data
+      emptyDir: {}
+  extraVolumeMounts:
+    - name: data
+      mountPath: /var/loki
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# Simple-scalable targets (the chart's default mode) — off.
+backend:
+  replicas: 0
+read:
+  replicas: 0
+write:
+  replicas: 0
+
+# memcached caches. chunksCache alone requests 8 GiB of RAM by default — more than
+# a whole t3.large can give one pod. Pointless at our log volume.
+chunksCache:
+  enabled: false
+resultsCache:
+  enabled: false
+
+# nginx in front of Loki — only useful with several components or auth. Alloy and
+# Grafana talk to the Loki Service directly: loki.monitoring.svc:3100.
+gateway:
+  enabled: false
+
+# Synthetic log generator + the Helm test that depends on it.
+lokiCanary:
+  enabled: false
+test:
+  enabled: false

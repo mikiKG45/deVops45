@@ -42,10 +42,11 @@ grafana:
   # the Grafana chart generates a random 40-char password into a Secret instead,
   # so no password is ever written into git.
   adminPassword: ""
-  # No Ingress: Grafana stays private, reached via `kubectl port-forward`.
-  resources:
-    requests:
-      cpu: 50m
-      memory: 256Mi
-    limits:
-      memory: 512Mi
+  # Extra datasources next to the built-in Prometheus one. Grafana's datasource
+  # sidecar picks them up from a ConfigMap the chart renders.
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      uid: loki
+      url: http://loki.monitoring.svc.cluster.local:3100
+      access: proxy # Grafana's backend calls Loki, not your browser
